@@ -1,0 +1,74 @@
+{% extends './layout.html' %}
+
+{% block body %}
+        <!--Login section-->
+        <form class="container_" method="POST" action="{{ url_for('register') }}" onsubmit="return validarFormulario()">
+          <div class="img2">
+            <img src="https://cdn-icons-png.flaticon.com/512/12123/12123009.png" class="img2" alt="...">
+          </div> 
+          <div class="container_email">
+            <!--Email_container-->
+            <label for="email" class="Info_container">Email</label>
+            <input type="email" class="form-control" id="email" name="email" aria-describedby="emailHelp" required>
+          </div>
+          <!--Password_first_container-->
+          <div class="container_password">
+            <label for="password" class="form-label">Contraseña</label>
+            <input type="password" class="form-control" id="password" name="password" required>
+          </div>
+          <!--Password_second_container-->
+          <div class="container_password">
+            <label for="password2" class="form-label">Contraseña</label>
+            <input type="password2" class="form-control" id="password2" name="password2" required>
+          </div>
+
+          <!--button_male_gender_container-->
+        
+        <div class="gender_container">
+          <div class="gender_male_container">
+            <input class="gender_male_container" type="radio" name="gender" id="flexRadioDefault1">
+            <label class="gender_male_container" for="flexRadioDefault1">male</label>
+          </div>
+          <!--button_female_gender_container-->
+          <div class="gender_female_container">
+            <input class="gender_female_container" type="radio" name="gender" id="flexRadioDefault2" checked>
+            <label class="gender_female_container" for="flexRadioDefault2">female</label>
+          </div>
+        </div>
+          <!--button_confirmation_container-->
+          <div class="container_confirmation">
+            <input type="checkbox" class="form-check-input" id="exampleCheck1">
+            <label class="form-check-label" for="exampleCheck1">Confirmacion</label>
+        </div>
+
+          <!--button_continue_container-->
+          <div class="container_continue">
+          <button type="submit" class="btn btn-primary">Continuar</button>
+        </div>
+        </form>
+        <!-- Mensajes Flash -->
+<div class="container2">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+</div>
+        <!--Search button-->
+        <script>
+          function validarFormulario() {
+            var checkBox = document.getElementById('exampleCheck1');
+            if (!checkBox.checked) {
+              alert('Debes marcar la casilla de confirmación para continuar.');
+              return false;
+            }
+            return true;
+          }
+          </script>
+        {% endblock %}
+
