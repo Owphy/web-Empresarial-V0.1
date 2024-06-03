@@ -13,15 +13,16 @@
   <div class="tab-content" id="v-pills-tabContent">
     {% for letter, doc_list in docs.items() %}
       <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="v-pills-{{ letter }}" role="tabpanel" aria-labelledby="v-pills-{{ letter }}-tab">
-        <h3>Documentos para {{ letter }}</h3>
+        <h3>Documentos con la letra {{ letter }} para leer</h3> <!-- text -->
         <ul>
           {% for doc in doc_list %}
             <li>{{ doc }}</li>
           {% endfor %}
         </ul>
+        <!-- upload of the documents -->
         <form action="{{ url_for('worker_layout') }}" method="post" enctype="multipart/form-data">
           <input type="file" name="file" required>
-          <button type="submit" class="btn btn-primary mt-2">Subir Documento</button>
+          <button type="submit" class="btn btn-primary mt-2">Subir Documento</button> 
         </form>
       </div>
     {% endfor %}

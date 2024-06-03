@@ -27,6 +27,8 @@ def library():
 def recover_password():
     return render_template('recover_password.html')
 
+    #Tools to login, GET and POST to save the user into dataBase
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -46,7 +48,8 @@ def login():
     
     return render_template('login.html')
 
-#Register
+    #Tools to save the register info of the user into the dataBase
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
         if request.method == 'POST':
@@ -74,6 +77,8 @@ def register():
 
         return render_template('register.html')
 
+    #Tools to save the upload files by the user into the dataBase
+
 @app.route('/worker_layout', methods=['GET', 'POST'])
 def worker_layout():
     docs = {chr(i): [] for i in range(65, 65+26)}
@@ -90,7 +95,7 @@ def worker_layout():
         file = request.files['file']
         if file:
             filename = secure_filename(file.filename)
-            first_letter = filename[0].upper()  # Leer la primera letra y convertirla a mayúscula
+            first_letter = filename[0].upper()  # Read the first word of the file to save it into the dataBase
             if first_letter in docs:
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], first_letter, filename)
                 os.makedirs(os.path.dirname(filepath), exist_ok=True)
