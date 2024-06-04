@@ -58,6 +58,14 @@
     width: 500px;
 }
 
+.card{
+    display: block; 
+    margin-left: 5px;
+    margin-top: 5px;
+    margin-right: 5px;
+    width: 500px;
+}
+
 .register_container{
     display: block; 
     margin-left: auto;

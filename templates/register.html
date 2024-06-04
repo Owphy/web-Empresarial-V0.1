@@ -1,54 +1,9 @@
 {% extends './layout.html' %}
 
 {% block body %}
-        <!--Login section-->
-        <form class="container_" method="POST" action="{{ url_for('register') }}" onsubmit="return validarFormulario()">
-          <div class="img2">
-            <img src="https://cdn-icons-png.flaticon.com/512/12123/12123009.png" class="img2" alt="...">
-          </div> 
-          <div class="container_email">
-            <!--Email_container-->
-            <label for="email" class="Info_container">Email</label>
-            <input type="email" class="form-control" id="email" name="email" aria-describedby="emailHelp" required>
-          </div>
-          <!--Password_first_container-->
-          <div class="container_password">
-            <label for="password" class="form-label">Contraseña</label>
-            <input type="password" class="form-control" id="password" name="password" required>
-          </div>
-          <!--Password_second_container-->
-          <div class="container_password">
-            <label for="password2" class="form-label">Contraseña</label>
-            <input type="password2" class="form-control" id="password2" name="password2" required>
-          </div>
-
-          <!--button_male_gender_container-->
-        
-        <div class="gender_container">
-          <div class="gender_male_container">
-            <input class="gender_male_container" type="radio" name="gender" id="flexRadioDefault1">
-            <label class="gender_male_container" for="flexRadioDefault1">male</label>
-          </div>
-          <!--button_female_gender_container-->
-          <div class="gender_female_container">
-            <input class="gender_female_container" type="radio" name="gender" id="flexRadioDefault2" checked>
-            <label class="gender_female_container" for="flexRadioDefault2">female</label>
-          </div>
-        </div>
-          <!--button_confirmation_container-->
-          <div class="container_confirmation">
-            <input type="checkbox" class="form-check-input" id="exampleCheck1">
-            <label class="form-check-label" for="exampleCheck1">Confirmacion</label>
-        </div>
-
-          <!--button_continue_container-->
-          <div class="container_continue">
-          <button type="submit" class="btn btn-primary">Continuar</button>
-        </div>
-        </form>
-        <!-- Mensajes Flash -->
-<div class="container2">
-  {% with messages = get_flashed_messages(with_categories=true) %}
+<!-- Mensajes Flash -->
+<div class="container mt-3">
+  {% with messages = get_flashed_messages(with_categories=flase) %}
     {% if messages %}
       {% for category, message in messages %}
         <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
@@ -59,16 +14,79 @@
     {% endif %}
   {% endwith %}
 </div>
-        <!--Search button-->
-        <script>
-          function validarFormulario() {
-            var checkBox = document.getElementById('exampleCheck1');
-            if (!checkBox.checked) {
-              alert('Debes marcar la casilla de confirmación para continuar.');
-              return false;
-            }
-            return true;
-          }
-          </script>
-        {% endblock %}
 
+<!-- Formulario de Registro -->
+<form class="container_" method="POST" action="{{ url_for('register') }}" onsubmit="return validarFormulario()">
+  <div class="img2">
+    <img src="https://cdn-icons-png.flaticon.com/512/12123/12123009.png" class="img2" alt="...">
+  </div> 
+  <div class="container_email">
+    <!-- Contenedor de Nombre de Usuario -->
+    <label for="username" class="Info_container">Username</label>
+    <input type="text" class="form-control" id="username" name="username" required>
+  </div>
+  <!-- Contenedor de Contraseña -->
+  <div class="container_password">
+    <label for="password" class="form-label">Contraseña</label>
+    <input type="password" class="form-control" id="password" name="password" required>
+  </div>
+  <!-- Contenedor de Confirmación de Contraseña -->
+  <div class="container_password">
+    <label for="password2" class="form-label">Confirmar Contraseña</label>
+    <input type="password" class="form-control" id="password2" name="password2" required>
+  </div>
+  <!-- Contenedor de Género -->
+  <div class="gender_container">
+    <div class="gender_male_container">
+      <input class="gender_male_container" type="radio" name="gender" id="gender_male" value="Hombre" required>
+      <label class="gender_male_container" for="gender_male">Hombre</label>
+    </div>
+    <div class="gender_female_container">
+      <input class="gender_female_container" type="radio" name="gender" id="gender_female" value="Mujer" required>
+      <label class="gender_female_container" for="gender_female">Mujer</label>
+    </div>
+    <div class="gender_other_container">
+      <input class="gender_other_container" type="radio" name="gender" id="gender_other" value="Otro" required>
+      <label class="gender_other_container" for="gender_other">Otro</label>
+    </div>
+  </div>
+  <!-- Contenedor de Confirmación -->
+  <div class="container_confirmation">
+    <input type="checkbox" class="form-check-input" id="exampleCheck1" required>
+    <label class="form-check-label" for="exampleCheck1">Confirmación</label>
+  </div>
+  <!-- Botón de Continuar -->
+  <div class="container_continue">
+    <button type="submit" class="btn btn-primary" id="continue">Continuar</button>
+  </div>
+</form>
+
+<!-- Validación del Formulario -->
+<script>
+  function validarFormulario() {
+    var checkBox = document.getElementById('exampleCheck1');
+    var password = document.getElementById('password').value;
+    var password2 = document.getElementById('password2').value;
+    var gender_male = document.getElementById('gender_male').checked;
+    var gender_female = document.getElementById('gender_female').checked;
+    var gender_other = document.getElementById('gender_other').checked;
+    
+    if (!checkBox.checked) {
+      alert('Debes marcar la casilla de confirmación para continuar.');
+      return false;
+    }
+
+    if (!gender_male && !gender_female && !gender_other) {
+      alert('Debes seleccionar tu género.');
+      return false;
+    }
+
+    if (password !== password2) {
+      alert('Las contraseñas no coinciden.');
+      return false;
+    }
+
+    return true;
+  }
+</script>
+{% endblock %}

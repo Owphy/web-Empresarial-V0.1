@@ -15,6 +15,7 @@ conexion = mysql.connector.connect(user='root', password='Mysqlserver1',
 
 
 
+
 @app.route('/')
 def principal():
     return render_template('home2.html')
@@ -52,30 +53,36 @@ def login():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-        if request.method == 'POST':
-            username = request.form['username']
-            password = request.form['password']
-            password2 = request.form['password2']
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        password2 = request.form['password2']
+        gender = request.form['gender']
 
-            cursor = conexion.cursor(dictionary=True)
-            cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
-            user = cursor.fetchone()
-            if password == password2:
+        cursor = conexion.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+        user = cursor.fetchone()
 
-                if user:
-                    flash('El nombre de usuario ya existe. Por favor, elige otro.', 'danger')
-                    cursor.close()
+        if user:
+            flash('El nombre de usuario ya existe. Por favor, elige otro.', 'danger')
+            cursor.close()
+            return redirect(url_for('register'))
 
-                password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        if password != password2:
+            flash('Las contraseñas no coinciden.', 'danger')
+            return redirect(url_for('register'))
 
-                cursor.execute("INSERT INTO users (username, password_hash, gender) VALUES (%s, %s, %s)", (username, password_hash, 'Otro'))
-                conexion.commit()
-                cursor.close()
+        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-            flash('Usuario registrado exitosamente', 'success')
-            return redirect(url_for('login'))
+        cursor.execute("INSERT INTO users (username, password_hash, gender) VALUES (%s, %s, %s)", 
+                       (username, password_hash, gender))
+        conexion.commit()
+        cursor.close()
 
-        return render_template('register.html')
+        flash('Usuario registrado exitosamente', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('register.html')
 
     #Tools to save the upload files by the user into the dataBase
 
