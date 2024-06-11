@@ -118,12 +118,6 @@ def home2():
 def layout():
     return render_template('user/layout.html')
 
-@app.route('/layout_commonUsers')
-@login_required
-@roles_required(1)
-def layout_commonUsers():
-    return render_template('admin/layout_commonUsers.html')
-
 @app.route('/home2_commonUsers')
 @login_required
 @roles_required(1, 3)
@@ -133,7 +127,7 @@ def home2_commonUsers():
 @app.route('/library_admin')
 @login_required
 @roles_required(1)
-def library_admin():
+def library():
     return render_template('admin/library_admin.html')
 
 @app.route('/recover_password', methods=['GET', 'POST'])
@@ -241,7 +235,7 @@ def register():
 @app.route('/worker_layout_admin', methods=['GET', 'POST'])
 @login_required
 @roles_required(1)
-def worker_layout_admin():
+def worker_layout():
     docs = {chr(i): [] for i in range(65, 65+26)}
     
     cursor = conexion.cursor(dictionary=True)
