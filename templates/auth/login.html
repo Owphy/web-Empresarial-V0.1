@@ -10,7 +10,6 @@
 </head>
 <body>
   {% block body %}
-
         <!--Login section-->
         <form class="container_" method="POST" action="{{ url_for('login') }}" onsubmit="return validarFormulario()">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

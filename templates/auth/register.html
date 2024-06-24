@@ -3,7 +3,7 @@
 {% block body %}
 <!-- Mensajes Flash -->
 <div class="container mt-3">
-  {% with messages = get_flashed_messages(with_categories=flase) %}
+  {% with messages = get_flashed_messages(with_categories=True) %}
     {% if messages %}
       {% for category, message in messages %}
         <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
@@ -17,6 +17,7 @@
 
 <!-- Formulario de Registro -->
 <form class="container_" method="POST" action="{{ url_for('register') }}" onsubmit="return validarFormulario()">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="img2">
     <img src="https://cdn-icons-png.flaticon.com/512/12123/12123009.png" class="img2" alt="...">
   </div> 
@@ -25,6 +26,13 @@
     <label for="username" class="Info_container">Username</label>
     <input type="text" class="form-control" id="username" name="username" required>
   </div>
+
+    <!-- email -->
+     <div class="container_email">
+    <label for="email" class="Info_container">E-mail</label>
+    <input type="email" class="form-control" id="email" name="email" required>
+    </div>
+
   <!-- Contenedor de Contraseña -->
   <div class="container_password">
     <label for="password" class="form-label">Contraseña</label>

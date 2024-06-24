@@ -25,9 +25,8 @@
             </a>
             <ul class="dropdown-menu">
               <li><a class="dropdown-item" href="{{ url_for('worker_layout_admin') }}">Documentos</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('library_admin') }}"> library </a></li>
               <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="#">Something else here</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('library_admin') }}"> library </a></li>
             </ul>
           </li>   
           <li class="nav-item">
@@ -35,7 +34,10 @@
           </li>
         </ul>
 
-      <a class="btn btn-secondary" href="{{url_for('logout')}}"> Logout</a>
+        <form action="{{ url_for('logout') }}" method="POST" class="d-inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-link nav-link">Logout</button>
+        </form>
 
 
         <!-- Search button -->

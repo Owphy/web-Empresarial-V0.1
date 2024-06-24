@@ -4,7 +4,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import bcrypt
-from flask import Flask, request, render_template, redirect, url_for, flash
+from flask import Flask, request, render_template, redirect, url_for, flash, send_from_directory
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
 import mysql.connector
@@ -17,6 +17,18 @@ app.secret_key = 'secreto'
 csrf = CSRFProtect(app)
 csrf.init_app(app)
 app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['WTF_CSRF_SECRET_KEY'] = 'clave_csrf'
+app.config['WTF_CSRF_TIME_LIMIT'] = 60
+
+csrf.init_app(app)
+
+# Define os_path_join function
+def os_path_join(*args):
+    return os.path.join(*args).replace("\\", "/")
+
+# Update Jinja environment to include os_path_join
+app.jinja_env.globals.update(os_path_join=os_path_join)
+
 
 # Conexión a la base de datos
 conexion = mysql.connector.connect(user='root', password='Mysqlserver1',
@@ -29,11 +41,14 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# Configuración de Email
 SMTP_SERVER = 'smtp.gmail.com'
 SMTP_PORT = 587
-SMTP_USERNAME = 'servermy188@gmail.com'
-SMTP_PASSWORD = '-k+%1w{2/2ZG@472#7.BrwYB3[I+5}'
+SMTP_USERNAME = os.getenv('SMTP_USERNAME', 'servermy188@gmail.com')
+SMTP_PASSWORD = os.getenv('SMTP_PASSWORD', 'pmen jwza dxvj znnw')
+
+# Función de utilidad para construir la ruta correctamente
+def os_path_join(folder, filename):
+    return os.path.join(folder, filename).replace("\\", "/")
 
 # Modelo de Usuario
 class User(UserMixin):
@@ -100,17 +115,32 @@ def login():
     return render_template('auth/login.html')
 
 @app.route('/logout', methods=['POST'])
-@login_required
 def logout():
     logout_user()
     flash('Has cerrado sesión', 'success')
     return redirect(url_for('login'))
+
+@app.route('/chatUsers')
+@login_required
+@roles_required(1, 3)
+def chatUsers():
+    return render_template('user/chatUsers.html')
 
 @app.route('/home2')
 @login_required
 @roles_required(1, 3)
 def home2():
     return render_template('user/home2.html')
+
+@app.route('/library_commonUsers')
+@login_required
+@roles_required(1, 3)
+def library_commonUsers():
+    cursor = conexion.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM library")
+    files = cursor.fetchall()
+    cursor.close()
+    return render_template('user/library_commonUsers.html', files=files, os_path_join=os_path_join)
 
 @app.route('/layout')
 @login_required
@@ -126,15 +156,48 @@ def layout_commonUsers():
 
 @app.route('/home2_commonUsers')
 @login_required
-@roles_required(1, 3)
+@roles_required(1)
 def home2_commonUsers():
     return render_template('admin/home2_commonUsers.html')
 
-@app.route('/library_admin')
+@app.route('/uploads/<path:filename>')
+@login_required
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/library_admin', methods=['GET', 'POST'])
 @login_required
 @roles_required(1)
 def library_admin():
-    return render_template('admin/library_admin.html')
+    cursor = conexion.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM library")
+    files = cursor.fetchall()
+    cursor.close()
+
+    if request.method == 'POST':
+        file = request.files['file']
+        category = request.form['category']
+        if file:
+            filename = secure_filename(file.filename)
+            letter = filename[0].upper()
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], letter, filename)
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            file.save(filepath)
+            
+            # Guarda la ruta en la forma correcta en la base de datos
+            file_path_db = os.path.join(letter, filename).replace("\\", "/")
+            
+            cursor = conexion.cursor()
+            cursor.execute("INSERT INTO library (filename, file_path, category) VALUES (%s, %s, %s)", 
+                           (filename, file_path_db, category))
+            conexion.commit()
+            cursor.close()
+                
+            flash(f'Archivo {filename} subido exitosamente en la categoría {category}.', 'success')
+            return redirect(url_for('library_admin'))
+
+    return render_template('admin/library_admin.html', files=files)
+
 
 @app.route('/recover_password', methods=['GET', 'POST'])
 def recover_password():
@@ -164,7 +227,8 @@ def send_email(to_email, token):
     msg['To'] = to_email
     msg['Subject'] = 'Recuperación de contraseña'
 
-    body = f'Tu código de recuperación es: {token}'
+    body = f'Tu código de recuperación es: {token}\n\n'
+    body += f'http://127.0.0.1:5000/reset_password/{token}'
     msg.attach(MIMEText(body, 'plain'))
 
     server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
@@ -218,7 +282,10 @@ def register():
         user = cursor.fetchone()
 
         if user:
-            flash('El nombre de usuario o correo electrónico ya existe. Por favor, elige otro.', 'danger')
+            if user['username'] == username:
+                flash('El nombre de usuario ya existe. Por favor, elige otro.', 'danger')
+            if user['email'] == email:
+                flash('El correo electrónico ya existe. Por favor, elige otro.', 'danger')
             cursor.close()
             return redirect(url_for('register'))
 
@@ -230,6 +297,12 @@ def register():
 
         cursor.execute("INSERT INTO users (username, email, password_hash, gender) VALUES (%s, %s, %s, %s)", 
                        (username, email, password_hash, gender))
+        user_id = cursor.lastrowid  #  ID del usuario recién insertado
+
+        # rol de 'viewer' (id 3) al nuevo usuario
+        cursor.execute("INSERT INTO user_roles (user_id, role_id) VALUES (%s, 3)", (user_id,))
+
+
         conexion.commit()
         cursor.close()
 
@@ -273,7 +346,7 @@ def worker_layout_admin():
             else:
                 flash('La primera letra del nombre del archivo no es válida.', 'danger')
 
-    return render_template('admin/worker_layout_admin.html', docs=docs)
+    return render_template('admin/worker_layout_admin.html', docs=docs, os_path_join=os_path_join)
 
 if __name__ == '__main__':
     app.run(debug=True)
