@@ -171,37 +171,25 @@
                 Trabajador
               </a>
               <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="{{ url_for('worker_layout_admin') }}">Documentos</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{{ url_for('library_admin') }}"> library </a></li>
+                <li><a class="dropdown-item" href="{{ url_for('library_commonUsers') }}"> library </a></li>
               </ul>
             </li>   
             <li class="nav-item">
               <a class="nav-link disabled" aria-disabled="true">Disabled</a>
             </li>
           </ul>
-
-          <a href="{{ url_for('chatUsers') }}" class="cointainer_down btn btn-bd-primary py-2 d-flex align-items-center">
-            <img src="{{ url_for('static', filename='login_logo.png') }}">
-          </a>
-
+  
+          <form class="container-logout" action="{{ url_for('logout') }}" method="POST" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-link nav-link">Logout</button>
+          </form>
+          <a href="{{ url_for('chatUsers') }}" class="btn btn-outline-secondary fixed-bottom-right">Help</a>
           <!-- Login button -->
-          <div class="dropdown login" type="submit">
-            <img src="{{ url_for('static', filename='login_logo.png') }}" alt="Login Logo" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton">
-              <li><a class="dropdown-item" href="{{ url_for('profile') }}">Perfil</a>
-
-              <li><hr class="dropdown-divider"></li>
-              <li>
-                <form class="container-logout" action="{{ url_for('logout') }}" method="POST" class="d-inline">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="dropdown-item">Cerrar sesion</button>
-                </form>
-              </li>
-              </a></li>
-            </ul>
+          <div class="login">
+            <a class="login_" href="{{ url_for('login') }}">
+              <img src="{{ url_for('static', filename='login_logo.png') }}">
+            </a>
           </div>
-
         </div>
       </div>
     </nav>

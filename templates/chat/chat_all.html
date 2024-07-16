@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <style>
+        .chat-box {
+            max-height: 400px;
+            overflow-y: scroll;
+        }
+        .chat-message {
+            margin-bottom: 10px;
+        }
+        .chat-message .username {
+            font-weight: bold;
+        }
+        .fixed-top-right {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h2>Chat Room: {{ room }}</h2>
+            <div class="chat-box" id="chat-box"></div>
+            <input type="text" id="message" class="form-control" placeholder="Type a message...">
+            <input type="file" id="file" class="form-control mt-2">
+            <button class="btn btn-primary mt-2" id="send-btn">Send</button>
+            <div class="fixed-top-right">
+                <button class="btn btn-danger" id="clear-btn">Clear Chat</button>
+                <button class="btn btn-warning" id="disable-role-1-btn">Disable Role 1 Writing</button>
+                <button class="btn btn-success" id="enable-role-1-btn">Enable Role 1 Writing</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+<script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+<script>
+    $(document).ready(function () {
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+        var room = "{{ room }}";
+        var username = "{{ username }}";
+        socket.emit('join', {'room': room, 'username': username});
+
+        socket.on('message', function (data) {
+            $('#chat-box').append('<div class="chat-message"><span class="username">' + data.username + ':</span> ' + data.msg + '</div>');
+        });
+
+        $('#send-btn').on('click', function () {
+            var msg = $('#message').val();
+            socket.emit('message', {'msg': msg, 'room': room, 'username': username});
+            $('#message').val('');
+        });
+
+        $('#clear-btn').on('click', function () {
+            socket.emit('clear', {'room': room});
+            $('#chat-box').html('');
+        });
+
+        $('#disable-role-1-btn').on('click', function () {
+            socket.emit('disable_role_1', {'room': room});
+        });
+
+        $('#enable-role-1-btn').on('click', function () {
+            socket.emit('enable_role_1', {'room': room});
+        });
+    });
+</script>
+</body>
+</html>

@@ -15,6 +15,27 @@
   </li>
 </ul>
 
+<!-- Upload Form -->
+<form method="POST" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="container-letter1">
+    <label for="file" class="form-label">Selecciona el archivo</label>
+    <input type="file" class="form-control" id="file" name="file" required>
+  </div>
+
+  <div class="container-letter2">
+    <label for="category" class="form-label">Categoría</label>
+    <select class="form-control" id="category" name="category" required>
+      <option value="Administration">Administration</option>
+      <option value="Coworking">Coworking</option>
+      <option value="Mental health">Mental health</option>
+    </select>
+  </div>
+
+  <button type="submit" class="container-letter2">Subir</button>
+</form>
+
+
 <!-- Buttons for docs -->
 <div class="tab-content" id="pills-tabContent">
   <div class="tab-pane fade show active" id="pills-home" role="tabpanel" aria-labelledby="pills-home-tab" tabindex="0">
@@ -42,23 +63,5 @@
     </div>
   </div>
 </div>
-
-<!-- Upload Form -->
-<form method="POST" enctype="multipart/form-data">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="mb-3">
-    <label for="file" class="form-label">Selecciona el archivo</label>
-    <input type="file" class="form-control" id="file" name="file" required>
-  </div>
-  <div class="mb-3">
-    <label for="category" class="form-label">Categoría</label>
-    <select class="form-control" id="category" name="category" required>
-      <option value="Administration">Administration</option>
-      <option value="Coworking">Coworking</option>
-      <option value="Mental health">Mental health</option>
-    </select>
-  </div>
-  <button type="submit" class="btn btn-primary">Subir</button>
-</form>
 
 {% endblock %}

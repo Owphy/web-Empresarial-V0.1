@@ -7,12 +7,21 @@
     height: 600px;
 }
 
+  .cointainer_down {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    z-index: 1000;
+    opacity: 0.5;
+  }
+
+
 .container_{
-    background-color: #CCCCCC; 
+    background-color: #67686e; 
     border-radius: 5%;
     display: block; 
     margin-left: auto;
-    margin-top: 50px;
+    margin-top: 5%;
     margin-right: auto;
     width: 900px;
     height: 800px;
@@ -48,6 +57,32 @@
     margin-right: auto;
     width: 500px;
 
+}
+
+.container-logout{
+    display: block; 
+    margin-left: -50;
+    margin-top: -50;
+    margin-right: -50;
+    width: auto;
+
+}
+
+.container-letter1{
+    display: block; 
+    margin-left: auto;
+    margin-top: 3px;
+    margin-right: auto;
+    width: 500px;
+}
+
+.container-letter2{
+    display: block; 
+    margin-left: auto;
+    margin-top: 3px;
+    margin-bottom: 25px;
+    margin-right: auto;
+    width: 500px;
 }
 
 .container_confirmation{
@@ -139,4 +174,12 @@
     width: 75px;
     height: auto;
     max-width: 20%;
+}
+.edit-icon, .save-icon {
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+.save-icon {
+    display: none; /* Por defecto está oculto y solo se muestra al editar */
 }

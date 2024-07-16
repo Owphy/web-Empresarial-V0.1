@@ -1,15 +1,19 @@
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import os
 import secrets
 import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import bcrypt
-from flask import Flask, request, render_template, redirect, url_for, flash, send_from_directory
+from flask import Flask, request, render_template, redirect, url_for, flash, send_from_directory, jsonify, session
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from werkzeug.utils import secure_filename
+from flask_socketio import SocketIO, join_room, leave_room, send, emit
 import mysql.connector
 from flask_wtf.csrf import CSRFProtect
 from functools import wraps
+from werkzeug.utils import secure_filename
+from flask_sqlalchemy import SQLAlchemy
+
+
 
 app = Flask(__name__)
 
@@ -20,8 +24,27 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['WTF_CSRF_SECRET_KEY'] = 'clave_csrf'
 app.config['WTF_CSRF_TIME_LIMIT'] = 60
 
-csrf.init_app(app)
+# Inicializar Flask-SocketIO
+socketio = SocketIO(app)
+db = SQLAlchemy(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+                                                    #Class-chat-all
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(150), unique=True, nullable=False)
+    password = db.Column(db.String(150), nullable=False)
+    role_id = db.Column(db.Integer, nullable=False)
 
+class ChatMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    room_id = db.Column(db.String(255), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    username = db.Column(db.String(255), nullable=False)
+    message = db.Column(db.Text, nullable=True)
+    file_path = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+                                                    #Class-chat-all- end
 # Define os_path_join function
 def os_path_join(*args):
     return os.path.join(*args).replace("\\", "/")
@@ -84,6 +107,8 @@ def roles_required(*roles):
         return decorated_view
     return decorator
 
+#templates------------------------------------------------------
+
 @app.route('/')
 def index():
     return redirect(url_for('login'))
@@ -102,10 +127,13 @@ def login():
             user_obj = User(id=user['id'], username=user['username'], password_hash=user['password_hash'], role_id=user['role_id'])
             login_user(user_obj)
             if user['role_id'] == 1:
-                flash('Inicio de sesión exitoso como administrador', 'success')
+                flash('Inicio de sesión exitoso como Administrador', 'success')
                 return redirect(url_for('home2_commonUsers'))
+            if user['role_id'] == 2:
+                flash('Inicio de sesión exitoso como Editor', 'success')
+                return redirect(url_for('home_editor'))
             elif user['role_id'] == 3:
-                flash('Inicio de sesión exitoso como espectador', 'success')
+                flash('Inicio de sesión exitoso como Espectador', 'success')
                 return redirect(url_for('home2'))
             else:
                 flash('Rol no reconocido', 'danger')
@@ -114,6 +142,67 @@ def login():
 
     return render_template('auth/login.html')
 
+#Home-editor-templates------------------------------------------------------
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    cursor = conexion.cursor(dictionary=True)
+    cursor.execute("SELECT username, email, created_at FROM users WHERE id = %s", (current_user.id,))
+    user_data = cursor.fetchone()
+    cursor.close()
+
+    if request.method == 'POST':
+        current_password = request.form['current_password']
+        new_password = request.form['new_password']
+        confirm_password = request.form['confirm_password']
+
+        if not bcrypt.checkpw(current_password.encode('utf-8'), current_user.password_hash.encode('utf-8')):
+            flash('La contraseña actual es incorrecta', 'danger')
+        elif new_password != confirm_password:
+            flash('Las nuevas contraseñas no coinciden', 'danger')
+        else:
+            new_password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            cursor = conexion.cursor()
+            cursor.execute("UPDATE users SET password_hash = %s WHERE id = %s", (new_password_hash, current_user.id))
+            conexion.commit()
+            cursor.close()
+            flash('Password updated successfully', 'success')
+    
+    return render_template('auth/profile.html', user_data=user_data)
+
+@app.route('/home_editor')
+@login_required
+@roles_required(2)
+def home_editor():
+    cursor = conexion.cursor(dictionary=True)
+    cursor.execute("SELECT section_id, content FROM editable_texts")
+    editable_texts = cursor.fetchall()
+    cursor.close()
+    texts = {text['section_id']: text['content'] for text in editable_texts}
+    return render_template('edit/home_editor.html', editable_texts=texts)
+
+@app.route('/home_editor')
+@login_required
+@roles_required(2) 
+def layout_editor():
+    return render_template('edit/layout_editor.html')
+
+@app.route('/save_text', methods=['POST'])
+@login_required
+@roles_required(2)
+def save_text():
+    data = request.get_json()
+    section_id = data['section_id']
+    content = data['content']
+
+    cursor = conexion.cursor()
+    cursor.execute("UPDATE editable_texts SET content = %s WHERE section_id = %s", (content, section_id))
+    conexion.commit()
+    cursor.close()
+
+    return jsonify(success=True)
+
+#Home------------------------------------------------------
 @app.route('/logout', methods=['POST'])
 def logout():
     logout_user()
@@ -122,19 +211,69 @@ def logout():
 
 @app.route('/chatUsers')
 @login_required
-@roles_required(1, 3)
+@roles_required(1, 3, 2)
 def chatUsers():
     return render_template('user/chatUsers.html')
+# Rutas de Chat------------------------------------------------------
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+@app.route('/chat/<room>', methods=['GET', 'POST'])
+@login_required
+def chat(room):
+    if current_user.role_id not in get_allowed_roles(room):
+        flash('No tienes permiso para acceder a esta sala de chat.', 'danger')
+        return redirect(url_for('index'))
+
+    return render_template('chat/chat_all.html', room=room, username=current_user.username)
+
+def get_allowed_roles(room):
+    if room == 'chat_all':
+        return [1, 2, 3]
+    elif room == 'chat_2_3':
+        return [2, 3]
+    elif room == 'chat_3':
+        return [3]
+    return []
+
+@socketio.on('join')
+def handle_join(data):
+    join_room(data['room'])
+    send({'msg': f"{data['username']} ha entrado a la sala.", 'username': 'System'}, room=data['room'])
+
+@socketio.on('message')
+def handle_message(data):
+    new_message = ChatMessage(room_id=data['room'], user_id=current_user.id, username=current_user.username, message=data['msg'])
+    db.session.add(new_message)
+    db.session.commit()
+    send({'msg': data['msg'], 'username': current_user.username}, room=data['room'])
+
+@socketio.on('clear')
+def handle_clear(data):
+    ChatMessage.query.filter_by(room_id=data['room']).delete()
+    db.session.commit()
+    send({'msg': 'El chat ha sido limpiado.', 'username': 'System'}, room=data['room'])
+
+@socketio.on('disable_role_1')
+def handle_disable_role_1(data):
+    send({'msg': 'Usuarios de rol 1 no pueden escribir en este momento.', 'username': 'System'}, room=data['room'])
+
+@socketio.on('enable_role_1')
+def handle_enable_role_1(data):
+    send({'msg': 'Usuarios de rol 1 pueden escribir nuevamente.', 'username': 'System'}, room=data['room'])
+
+#Fin-chat-events ------------------------------------------------------
 
 @app.route('/home2')
 @login_required
-@roles_required(1, 3)
+@roles_required(1, 3, 2)
 def home2():
     return render_template('user/home2.html')
 
 @app.route('/library_commonUsers')
 @login_required
-@roles_required(1, 3)
+@roles_required(1, 3, 2)
 def library_commonUsers():
     cursor = conexion.cursor(dictionary=True)
     cursor.execute("SELECT * FROM library")
@@ -144,19 +283,19 @@ def library_commonUsers():
 
 @app.route('/layout')
 @login_required
-@roles_required(1, 3)
+@roles_required(1, 3, 2)
 def layout():
     return render_template('user/layout.html')
 
 @app.route('/layout_commonUsers')
 @login_required
-@roles_required(1)
+@roles_required(1, 2)
 def layout_commonUsers():
     return render_template('admin/layout_commonUsers.html')
 
 @app.route('/home2_commonUsers')
 @login_required
-@roles_required(1)
+@roles_required(1, 2)
 def home2_commonUsers():
     return render_template('admin/home2_commonUsers.html')
 
@@ -167,7 +306,7 @@ def uploaded_file(filename):
 
 @app.route('/library_admin', methods=['GET', 'POST'])
 @login_required
-@roles_required(1)
+@roles_required(1, 2)
 def library_admin():
     cursor = conexion.cursor(dictionary=True)
     cursor.execute("SELECT * FROM library")
@@ -313,7 +452,7 @@ def register():
 
 @app.route('/worker_layout_admin', methods=['GET', 'POST'])
 @login_required
-@roles_required(1)
+@roles_required(1, 2)
 def worker_layout_admin():
     docs = {chr(i): [] for i in range(65, 65+26)}
     

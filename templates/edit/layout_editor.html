@@ -181,6 +181,10 @@
             </li>
           </ul>
 
+          <form class="container-logout" action="{{ url_for('logout') }}" method="POST" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-secondary fixed-bottom-right">Logout</button>
+          </form>
           <a href="{{ url_for('chatUsers') }}" class="cointainer_down btn btn-bd-primary py-2 d-flex align-items-center">
             <img src="{{ url_for('static', filename='login_logo.png') }}">
           </a>
