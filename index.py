@@ -6,17 +6,12 @@ import smtplib
 import bcrypt
 from flask import Flask, request, render_template, redirect, url_for, flash, send_from_directory, jsonify, session
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from flask_socketio import SocketIO, join_room, leave_room, send, emit
 import mysql.connector
 from flask_wtf.csrf import CSRFProtect
 from functools import wraps
 from werkzeug.utils import secure_filename
-from flask_sqlalchemy import SQLAlchemy
-
-
 
 app = Flask(__name__)
-
 app.secret_key = 'secreto'
 csrf = CSRFProtect(app)
 csrf.init_app(app)
@@ -24,27 +19,6 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['WTF_CSRF_SECRET_KEY'] = 'clave_csrf'
 app.config['WTF_CSRF_TIME_LIMIT'] = 60
 
-# Inicializar Flask-SocketIO
-socketio = SocketIO(app)
-db = SQLAlchemy(app)
-login_manager = LoginManager()
-login_manager.init_app(app)
-                                                    #Class-chat-all
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(150), unique=True, nullable=False)
-    password = db.Column(db.String(150), nullable=False)
-    role_id = db.Column(db.Integer, nullable=False)
-
-class ChatMessage(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    room_id = db.Column(db.String(255), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    username = db.Column(db.String(255), nullable=False)
-    message = db.Column(db.Text, nullable=True)
-    file_path = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
-                                                    #Class-chat-all- end
 # Define os_path_join function
 def os_path_join(*args):
     return os.path.join(*args).replace("\\", "/")
@@ -107,7 +81,7 @@ def roles_required(*roles):
         return decorated_view
     return decorator
 
-#templates------------------------------------------------------
+#templates
 
 @app.route('/')
 def index():
@@ -142,7 +116,7 @@ def login():
 
     return render_template('auth/login.html')
 
-#Home-editor-templates------------------------------------------------------
+#Home-editor-templates
 @app.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
@@ -202,7 +176,7 @@ def save_text():
 
     return jsonify(success=True)
 
-#Home------------------------------------------------------
+#Home
 @app.route('/logout', methods=['POST'])
 def logout():
     logout_user()
@@ -214,56 +188,6 @@ def logout():
 @roles_required(1, 3, 2)
 def chatUsers():
     return render_template('user/chatUsers.html')
-# Rutas de Chat------------------------------------------------------
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
-
-@app.route('/chat/<room>', methods=['GET', 'POST'])
-@login_required
-def chat(room):
-    if current_user.role_id not in get_allowed_roles(room):
-        flash('No tienes permiso para acceder a esta sala de chat.', 'danger')
-        return redirect(url_for('index'))
-
-    return render_template('chat/chat_all.html', room=room, username=current_user.username)
-
-def get_allowed_roles(room):
-    if room == 'chat_all':
-        return [1, 2, 3]
-    elif room == 'chat_2_3':
-        return [2, 3]
-    elif room == 'chat_3':
-        return [3]
-    return []
-
-@socketio.on('join')
-def handle_join(data):
-    join_room(data['room'])
-    send({'msg': f"{data['username']} ha entrado a la sala.", 'username': 'System'}, room=data['room'])
-
-@socketio.on('message')
-def handle_message(data):
-    new_message = ChatMessage(room_id=data['room'], user_id=current_user.id, username=current_user.username, message=data['msg'])
-    db.session.add(new_message)
-    db.session.commit()
-    send({'msg': data['msg'], 'username': current_user.username}, room=data['room'])
-
-@socketio.on('clear')
-def handle_clear(data):
-    ChatMessage.query.filter_by(room_id=data['room']).delete()
-    db.session.commit()
-    send({'msg': 'El chat ha sido limpiado.', 'username': 'System'}, room=data['room'])
-
-@socketio.on('disable_role_1')
-def handle_disable_role_1(data):
-    send({'msg': 'Usuarios de rol 1 no pueden escribir en este momento.', 'username': 'System'}, room=data['room'])
-
-@socketio.on('enable_role_1')
-def handle_enable_role_1(data):
-    send({'msg': 'Usuarios de rol 1 pueden escribir nuevamente.', 'username': 'System'}, room=data['room'])
-
-#Fin-chat-events ------------------------------------------------------
 
 @app.route('/home2')
 @login_required
