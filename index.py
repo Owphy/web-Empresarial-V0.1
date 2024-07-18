@@ -6,9 +6,11 @@ import smtplib
 import bcrypt
 from flask import Flask, request, render_template, redirect, url_for, flash, send_from_directory, jsonify, session
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_socketio import SocketIO, emit, join_room, leave_room
 import mysql.connector
 from flask_wtf.csrf import CSRFProtect
 from functools import wraps
+import socketio
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -17,7 +19,8 @@ csrf = CSRFProtect(app)
 csrf.init_app(app)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['WTF_CSRF_SECRET_KEY'] = 'clave_csrf'
-app.config['WTF_CSRF_TIME_LIMIT'] = 60
+csrf.init_app(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Define os_path_join function
 def os_path_join(*args):
@@ -37,6 +40,16 @@ conexion = mysql.connector.connect(user='root', password='Mysqlserver1',
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+# Verificar conexión a la base de datos
+def check_db_connection():
+    try:
+        conexion.ping(reconnect=True, attempts=3, delay=5)
+        print("Conexión a la base de datos exitosa.---------------------------------------------------------------")
+    except mysql.connector.Error as err:
+        print(f"-------------------------------------------------------Error al conectar a la base de datos: {err}")
+
+check_db_connection()
 
 SMTP_SERVER = 'smtp.gmail.com'
 SMTP_PORT = 587
@@ -70,6 +83,7 @@ def load_user(user_id):
         return User(id=user['id'], username=user['username'], password_hash=user['password_hash'], role_id=user['role_id'])
     return None
 
+
 def roles_required(*roles):
     def decorator(func):
         @wraps(func)
@@ -80,7 +94,188 @@ def roles_required(*roles):
             return func(*args, **kwargs)
         return decorated_view
     return decorator
+#chat-events-start--------------------------------------------------------
 
+@app.route('/chat_all_users', methods=['GET', 'POST'])
+@login_required
+@roles_required(1, 2, 3)
+def chat_all_users():
+    if request.method == 'POST':
+        data = request.get_json()
+        room = 'chat_all_users'
+        message = data.get('message')
+        file_path = data.get('file_path', None)
+        username = current_user.username
+
+        # Guardar el mensaje en la base de datos
+        cursor = conexion.cursor()
+        query = """
+            INSERT INTO chat_message (room_id, user_id, username, message, file_path)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+        cursor.execute(query, (room, current_user.id, username, message, file_path))
+        conexion.commit()
+        cursor.close()
+
+        # Emitir el mensaje a la sala correspondiente
+        socketio.emit('receive_message', {
+            'username': username,
+            'message': message,
+            'file_path': file_path
+        }, room=room)
+
+        return jsonify(success=True)
+
+    # Manejar GET para cargar la página de chat
+    return render_template('chat/chat_all_users.html')
+
+@app.route('/chat_all_admin', methods=['GET', 'POST'])
+@login_required
+@roles_required(2, 1)  # Asegúrate de que los roles sean correctos
+def chat_all_admin():
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            room = 'chat_all_admin'
+            message = data.get('message')
+            file_path = data.get('file_path', None)
+            username = current_user.username
+
+            # Guardar el mensaje en la base de datos
+            cursor = conexion.cursor()
+            query = """
+                INSERT INTO chat_message (room_id, user_id, username, message, file_path)
+                VALUES (%s, %s, %s, %s, %s)
+            """
+            cursor.execute(query, (room, current_user.id, username, message, file_path))
+            conexion.commit()
+            cursor.close()
+
+            # Emitir el mensaje a la sala correspondiente
+            socketio.emit('receive_message', {
+                'username': username,
+                'message': message,
+                'file_path': file_path
+            }, room=room)
+
+            return jsonify(success=True)
+        except Exception as e:
+            print(f"----------------------------------------------------Error processing request: {e}")
+            return jsonify(success=False, error=str(e)), 500
+
+    # Manejar GET para cargar la página de chat
+    return render_template('chat/chat_all_admin.html')
+
+@app.route('/chat_all_editor', methods=['GET, POST'])
+@login_required
+@roles_required(2)
+def chat_all_editor():
+    if request.method == 'POST':
+        data = request.get_json()
+        room = 'chat_all_editor'
+        message = data.get('message')
+        file_path = data.get('file_path', None)
+        username = current_user.username
+
+        # Guardar el mensaje en la base de datos
+        cursor = conexion.cursor()
+        query = """
+            INSERT INTO chat_message (room_id, user_id, username, message, file_path)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+        cursor.execute(query, (room, current_user.id, username, message, file_path))
+        conexion.commit()
+        cursor.close()
+
+        # Emitir el mensaje a la sala correspondiente
+        socketio.emit('receive_message', {
+            'username': username,
+            'message': message,
+            'file_path': file_path
+        }, room=room)
+
+        return jsonify(success=True)
+
+    # Manejar GET para cargar la página de chat
+    return render_template('chat/chat_all_editor.html')
+
+
+@app.route('/get_messages/<room>', methods=['GET'])
+@login_required
+def get_messages(room):
+    try:
+        cursor = conexion.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM chat_message WHERE room_id = %s ORDER BY created_at ASC", (room,))
+        messages = cursor.fetchall()
+        cursor.close()
+    except mysql.connector.Error as err:
+        return jsonify(success=False, error=str(err)), 500
+
+    return jsonify(messages)
+
+@app.route('/upload_file', methods=['POST'])
+@login_required
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    if file:
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        try:
+            file.save(filepath)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+        return jsonify({'file_path': filepath}), 200
+    return jsonify({'error': 'File not saved'}), 500
+
+
+@socketio.on('join')
+def on_join(data):
+    room = data['room']
+    join_room(room)
+    emit('receive_message', {'message': f'{current_user.username} ha entrado al chat.'}, room=room)
+
+@socketio.on('leave')
+def on_leave(data):
+    room = data['room']
+    leave_room(room)
+    emit('receive_message', {'message': f'{current_user.username} ha salido del chat.'}, room=room)
+
+@socketio.on('clear')
+def clear_messages(data):
+    room = data['room']
+    # Eliminar mensajes de la base de datos
+    cursor = conexion.cursor()
+    cursor.execute("DELETE FROM chat_message WHERE room_id = %s", (room,))
+    conexion.commit()
+    cursor.close()
+
+    emit('clear', room=room)
+
+@socketio.on('disable_role_1')
+def disable_role_1(data):
+    room = data['room']
+    # Aquí puedes añadir lógica para deshabilitar a los usuarios de rol 1
+    emit('disable_role_1', room=room)
+
+@socketio.on('enable_role_1')
+def enable_role_1(data):
+    room = data['room']
+    # Aquí puedes añadir lógica para habilitar a los usuarios de rol 1
+    emit('enable_role_1', room=room)
+
+# Definir la ruta para cargar archivos estáticos
+@app.route('/chat_uploads/<filename>')
+@login_required
+def chat_uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
+#chat-events-end----------------------------------------------------------
 #templates
 
 @app.route('/')
@@ -412,5 +607,8 @@ def worker_layout_admin():
     return render_template('admin/worker_layout_admin.html', docs=docs, os_path_join=os_path_join)
 
 if __name__ == '__main__':
-    app.run(debug=True)
-    csrf.init_app(app)
+    app.config['UPLOAD_FOLDER'] = 'uploads'
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    socketio.run(app, debug=True)
+
+    

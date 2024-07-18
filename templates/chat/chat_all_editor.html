@@ -1,0 +1,74 @@
+{% extends 'chat/chat_all_layout.html' %}
+
+{% block body %}
+<div class="container mt-5">
+    <h2>Chat para Editores</h2>
+    <div id="messages" class="border mb-3">
+        <!-- Mensajes del chat aparecerán aquí -->
+    </div>
+    <form id="chat-form">
+        <div class="input-group">
+            <input type="text" id="message" class="form-control" placeholder="Escribe tu mensaje...">
+            <div class="input-group-append">
+                <button type="submit" class="btn btn-primary">Enviar</button>
+                <div class="dropdown ms-2">
+                    <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        ...
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><input type="file" id="file" class="form-control"></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    const socket = io();
+    const messages = document.getElementById('messages');
+    const form = document.getElementById('chat-form');
+    const input = document.getElementById('message');
+    const fileInput = document.getElementById('file');
+
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();
+        const message = input.value;
+        const file = fileInput.files[0];
+
+        if (file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            fetch('/upload_file', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                socket.emit('send_message', {message: message, file_path: data.file_path});
+                fileInput.value = '';
+            });
+        } else {
+            socket.emit('send_message', {message: message});
+        }
+
+        input.value = '';
+    });
+
+    socket.on('receive_message', function(data) {
+        const msg = document.createElement('div');
+        msg.classList.add('message');
+        if (data.file_path) {
+            msg.innerHTML = `<strong>${data.user}:</strong> <a href="${data.file_path}" target="_blank">Download File</a>`;
+        } else {
+            msg.innerHTML = `<strong>${data.user}:</strong> ${data.message}`;
+        }
+        messages.appendChild(msg);
+        messages.scrollTop = messages.scrollHeight;
+    });
+
+    document.getElementById('clear-btn').addEventListener('click', function() {
+        socket.emit('clear');
+    });
+</script>
+{% endblock %}

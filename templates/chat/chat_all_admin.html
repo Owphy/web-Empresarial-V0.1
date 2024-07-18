@@ -1,0 +1,164 @@
+{% extends 'chat/chat_all_layout.html' %}
+
+{% block body %}
+
+<div class="container mt-5">
+    <h2>Chat para Administradores   
+        <div class="fixed-top-right">
+            <button class="btn btn-danger" id="clear-btn">Vaciar chat</button>
+            <button class="btn btn-warning" id="disable-role-1-btn">Deshabilitar a los usuarios</button>
+            <button class="btn btn-success" id="enable-role-1-btn">Habilitar a todos los usuarios</button>
+        </div>
+    </h2>
+    <div id="messages" class="border mb-3" style="height: 300px; overflow-y: scroll;">
+        <!-- Mensajes del chat aparecerán aquí -->
+    </div>
+    <form id="chat-form">
+        <div class="input-group">
+            <input type="text" id="message" class="form-control" placeholder="Escribe tu mensaje...">
+            <div class="input-group-append">
+                <button type="submit" class="btn btn-primary">Enviar</button>
+                <div class="dropdown ms-2">
+                    <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        ...
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><input type="file" id="file" class="form-control"></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+<script>
+    const socket = io();
+    const room = 'chat_all_admin';  // Especifica la sala para este chat
+    socket.emit('join', {room: room});
+    
+    const messages = document.getElementById('messages');
+    const form = document.getElementById('chat-form');
+    const input = document.getElementById('message');
+    const fileInput = document.getElementById('file');
+
+    // Función para cargar los mensajes al iniciar
+    fetch(`/get_messages/${room}`)
+        .then(response => response.json())
+        .then(data => {
+            data.forEach(msg => {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message');
+                if (msg.file_path) {
+                    messageElement.innerHTML = `<strong>${msg.username}:</strong> <a href="${msg.file_path}" target="_blank">Download File</a>`;
+                } else {
+                    messageElement.innerHTML = `<strong>${msg.username}:</strong> ${msg.message}`;
+                }
+                messages.appendChild(messageElement);
+            });
+            messages.scrollTop = messages.scrollHeight;
+        });
+
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();
+        const message = input.value.trim();  // Asegúrate de que no haya espacios en blanco
+
+        if (!message) {
+            console.error('El mensaje está vacío');
+            return;
+        }
+
+        const file = fileInput.files[0];
+
+        if (file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            fetch('/upload_file', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                return fetch('/chat_all_admin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        file_path: data.file_path,
+                        room: room,
+                        username: '{{ username }}'
+                    })
+                });
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    input.value = '';
+                    fileInput.value = '';
+                } else {
+                    console.error('Error al enviar el mensaje:', data.error);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        } else {
+            fetch('/chat_all_admin', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: message,
+                    room: room,
+                    username: '{{ username }}'
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    input.value = '';
+                } else {
+                    console.error('Error al enviar el mensaje:', data.error);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    });
+
+    socket.on('receive_message', function(data) {
+        const msg = document.createElement('div');
+        msg.classList.add('message');
+        if (data.file_path) {
+            msg.innerHTML = `<strong>${data.username}:</strong> <a href="${data.file_path}" target="_blank">Download File</a>`;
+        } else {
+            msg.innerHTML = `<strong>${data.username}:</strong> ${data.message}`;
+        }
+        messages.appendChild(msg);
+        messages.scrollTop = messages.scrollHeight;
+    });
+
+    document.getElementById('clear-btn').addEventListener('click', function() {
+        socket.emit('clear', {room: room});
+    });
+
+    document.getElementById('disable-role-1-btn').addEventListener('click', function() {
+        socket.emit('disable_role_1', {room: room});
+    });
+
+    document.getElementById('enable-role-1-btn').addEventListener('click', function() {
+        socket.emit('enable_role_1', {room: room});
+    });
+</script>
+
+{% endblock %}
