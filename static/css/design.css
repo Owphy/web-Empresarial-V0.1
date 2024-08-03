@@ -183,3 +183,36 @@
 .save-icon {
     display: none; /* Por defecto está oculto y solo se muestra al editar */
 }
+
+.subir_archivo{
+    display: fixed; 
+    margin-left: auto;
+    margin-top: -130px;
+    margin-right: 100px;
+    width: 75px;
+    height: auto;
+}
+
+.documento_name{
+    display: fixed; 
+    margin-left: auto;
+    margin-top: 40px;
+    margin-right: 1000px;
+    width: 75px;
+    height: auto;
+    max-width: 20%;
+}
+
+.actions-column {
+    width: 210px;
+  }
+
+.profile{
+    display: fixed; 
+    margin-left: auto;
+    margin-top: 40px;
+    margin-right: 725px;
+    width: 75px;
+    height: auto;
+    max-width: 20%;
+}

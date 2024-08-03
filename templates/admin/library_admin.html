@@ -1,8 +1,8 @@
-{% extends 'admin/layout_commonUsers.html' %}
+{% extends 'general_templates/general_layout.html' %}
 
 {% block body %}
 
-<!-- Docs -->
+<!-- Categorías -->
 <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
   <li class="nav-item" role="presentation">
     <button class="nav-link active" id="pills-home-tab" data-bs-toggle="pill" data-bs-target="#pills-home" type="button" role="tab" aria-controls="pills-home" aria-selected="true">Administration</button>
@@ -15,53 +15,234 @@
   </li>
 </ul>
 
-<!-- Upload Form -->
-<form method="POST" enctype="multipart/form-data">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="container-letter1">
-    <label for="file" class="form-label">Selecciona el archivo</label>
-    <input type="file" class="form-control" id="file" name="file" required>
+<div class="row">
+  <!-- Formulario de Subida -->
+  <div class="col-md-4">
+    <form id="upload-form" method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="mb-3">
+        <label for="file" class="form-label">Selecciona el archivo</label>
+        <input type="file" class="form-control" id="file" name="file" required>
+      </div>
+
+      <div class="mb-3">
+        <label for="category" class="form-label">Categoría</label>
+        <select class="form-control" id="category" name="category" required>
+          <option value="Administration">Administration</option>
+          <option value="Coworking">Coworking</option>
+          <option value="Mental health">Mental health</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Subir</button>
+    </form>
   </div>
 
-  <div class="container-letter2">
-    <label for="category" class="form-label">Categoría</label>
-    <select class="form-control" id="category" name="category" required>
-      <option value="Administration">Administration</option>
-      <option value="Coworking">Coworking</option>
-      <option value="Mental health">Mental health</option>
-    </select>
-  </div>
+  <!-- Tabla de Documentos -->
+  <div class="col-md-8">
+    <div class="tab-content" id="pills-tabContent">
+      <div class="tab-pane fade show active" id="pills-home" role="tabpanel" aria-labelledby="pills-home-tab" tabindex="0">
+        <!-- Administration -->
+        <form id="delete-form-Administration" method="POST" action="{{ url_for('delete_selected_files') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" id="selected-files-Administration" name="selected_files">
+          <table class="table table-striped table-hover mt-2">
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Lista de archivos</th>
+                <th scope="col" class="actions-column">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="file-list-Administration">
+              {% for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+                <tr>
+                  <td>{{ letter }}</td>
+                  <td>
+                    <ul class="list-unstyled">
+                      {% for file in files if file.category == 'Administration' and file.filename[0].upper() == letter %}
+                        <li>
+                          <input type="checkbox" name="selected_files_Administration" value="{{ file.filename }}|Administration">
+                          <a href="{{ url_for('uploaded_file', filename=os_path_join(file.filename[0].upper(), file.filename)) }}" target="_blank">{{ file.filename }}</a>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  </td>
+                  {% if loop.first %}
+                  <td rowspan="{{ files|length }}" class="actions-column">
+                    <div class="d-flex flex-column">
+                      <button type="button" class="btn btn-secondary mb-2 select-all">Seleccionar todo</button>
+                      <button type="button" class="btn btn-secondary mb-2 deselect-all">Deseleccionar todo</button>
+                      <button type="button" class="btn btn-danger delete-selected">Borrar seleccionado</button>
+                    </div>
+                  </td>
+                  {% endif %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </form>
+      </div>
+      
+      <!-- Similar blocks for Coworking and Mental health categories -->
+      <div class="tab-pane fade" id="pills-profile" role="tabpanel" aria-labelledby="pills-profile-tab" tabindex="0">
+        <!-- Coworking -->
+        <form id="delete-form-Coworking" method="POST" action="{{ url_for('delete_selected_files') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" id="selected-files-Coworking" name="selected_files">
+          <table class="table table-striped table-hover mt-2">
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Lista de archivos</th>
+                <th scope="col" class="actions-column">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="file-list-Coworking">
+              {% for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+                <tr>
+                  <td>{{ letter }}</td>
+                  <td>
+                    <ul class="list-unstyled">
+                      {% for file in files if file.category == 'Coworking' and file.filename[0].upper() == letter %}
+                        <li>
+                          <input type="checkbox" name="selected_files_Coworking" value="{{ file.filename }}|Coworking">
+                          <a href="{{ url_for('uploaded_file', filename=os_path_join(file.filename[0].upper(), file.filename)) }}" target="_blank">{{ file.filename }}</a>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  </td>
+                  {% if loop.first %}
+                  <td rowspan="{{ files|length }}" class="actions-column">
+                    <div class="d-flex flex-column">
+                      <button type="button" class="select_2 btn btn-secondary mb-2 select-all">Seleccionar todo</button>
+                      <button type="button" class="select_2 btn btn-secondary mb-2 deselect-all">Deseleccionar todo</button>
+                      <button type="button" class="select_2 btn btn-danger delete-selected">Borrar seleccionado</button>
+                    </div>
+                  </td>
+                  {% endif %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </form>
+      </div>
 
-  <button type="submit" class="container-letter2">Subir</button>
-</form>
+      <div class="tab-pane fade" id="pills-contact" role="tabpanel" aria-labelledby="pills-contact-tab" tabindex="0">
+        <!-- Mental health -->
+        <form id="delete-form-Mental-health" method="POST" action="{{ url_for('delete_selected_files') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" id="selected-files-Mental-health" name="selected_files">
+          <table class="table table-striped table-hover mt-2">
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Lista de archivos</th>
+                <th scope="col" class="actions-column">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="file-list-Mental-health">
+              {% for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+                <tr>
+                  <td>{{ letter }}</td>
+                  <td>
+                    <ul class="list-unstyled">
+                      {% for file in files if file.category == 'Mental health' and file.filename[0].upper() == letter %}
+                        <li>
+                          <input type="checkbox" name="selected_files_Mental_health" value="{{ file.filename }}|Mental health">
+                          <a href="{{ url_for('uploaded_file', filename=os_path_join(file.filename[0].upper(), file.filename)) }}" target="_blank">{{ file.filename }}</a>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  </td>
+                  {% if loop.first %}
+                  <td rowspan="{{ files|length }}" class="actions-column">
+                    <div class="d-flex flex-column">
+                      <button type="button" class="btn btn-secondary mb-2 select-all">Seleccionar todo</button>
+                      <button type="button" class="btn btn-secondary mb-2 deselect-all">Deseleccionar todo</button>
+                      <button type="button" class="btn btn-danger delete-selected">Borrar seleccionado</button>
+                    </div>
+                  </td>
+                  {% endif %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </form>
+      </div>
+      <!-- ... -->
 
-
-<!-- Buttons for docs -->
-<div class="tab-content" id="pills-tabContent">
-  <div class="tab-pane fade show active" id="pills-home" role="tabpanel" aria-labelledby="pills-home-tab" tabindex="0">
-    <!-- Administration information -->
-    <div class="list-group">
-      {% for file in files if file.category == 'Administration' %}
-        <a href="{{ url_for('uploaded_file', filename=os_path_join(file.filename[0].upper(), file.filename)) }}" class="list-group-item list-group-item-action" target="_blank">{{ file.filename }}</a>
-      {% endfor %}
-    </div>
-  </div>
-  <div class="tab-pane fade" id="pills-profile" role="tabpanel" aria-labelledby="pills-profile-tab" tabindex="0">
-    <!-- Coworking information -->
-    <div class="list-group">
-      {% for file in files if file.category == 'Coworking' %}
-        <a href="{{ url_for('uploaded_file', filename=os_path_join(file.filename[0].upper(), file.filename)) }}" class="list-group-item list-group-item-action" target="_blank">{{ file.filename }}</a>
-      {% endfor %}
-    </div>
-  </div>
-  <div class="tab-pane fade" id="pills-contact" role="tabpanel" aria-labelledby="pills-contact-tab" tabindex="0">
-    <!-- Mental health information -->
-    <div class="list-group">
-      {% for file in files if file.category == 'Mental health' %}
-        <a href="{{ url_for('uploaded_file', filename=os_path_join(file.filename[0].upper(), file.filename)) }}" class="list-group-item list-group-item-action" target="_blank">{{ file.filename }}</a>
-      {% endfor %}
     </div>
   </div>
 </div>
+
+<script>
+  document.querySelectorAll('.select-all').forEach(function(button) {
+    button.addEventListener('click', function() {
+      var form = button.closest('form');
+      form.querySelectorAll('input[type="checkbox"]').forEach(function(checkbox) {
+        checkbox.checked = true;
+      });
+    });
+  });
+
+  document.querySelectorAll('.deselect-all').forEach(function(button) {
+    button.addEventListener('click', function() {
+      var form = button.closest('form');
+      form.querySelectorAll('input[type="checkbox"]').forEach(function(checkbox) {
+        checkbox.checked = false;
+      });
+    });
+  });
+
+  document.querySelectorAll('.delete-selected').forEach(function(button) {
+    button.addEventListener('click', function() {
+      if (confirm('¿Estás seguro de que deseas eliminar los archivos seleccionados?')) {
+        var form = button.closest('form');
+        var selectedFiles = Array.from(form.querySelectorAll('input[name^="selected_files_"]:checked')).map(function(checkbox) {
+          return checkbox.value;
+        });
+        if (selectedFiles.length > 0) {
+          form.querySelector('input[name="selected_files"]').value = JSON.stringify(selectedFiles);
+          form.submit();
+        } else {
+          alert('No hay archivos seleccionados.');
+        }
+      }
+    });
+  });
+
+  document.getElementById('upload-form').addEventListener('submit', function(event) {
+    event.preventDefault();
+    var formData = new FormData(this);
+    fetch('{{ url_for("new_file") }}', {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        var category = document.getElementById('category').value;
+        var fileList = document.getElementById('file-list-' + category.replace(" ", "-"));
+        var letter = data.filename[0].toUpperCase();
+        var newListElement = document.createElement('li');
+        newListElement.innerHTML = '<input type="checkbox" name="selected_files_' + category.replace(" ", "_") + '" value="' + data.filename + '|' + category + '"> ' +
+                                   '<a href="' + data.file_url + '" target="_blank">' + data.filename + '</a>';
+        var row = Array.from(fileList.getElementsByTagName('tr')).find(tr => tr.getElementsByTagName('td')[0].innerText === letter);
+        if (row) {
+          row.getElementsByTagName('ul')[0].appendChild(newListElement);
+        } else {
+          // Create a new row if the letter doesn't exist
+          var newRow = document.createElement('tr');
+          newRow.innerHTML = '<td>' + letter + '</td><td><ul class="list-unstyled">' + newListElement.outerHTML + '</ul></td>';
+          fileList.appendChild(newRow);
+        }
+        document.getElementById('file').value = ''; // Reset file input
+      } else {
+        alert('Error al subir el archivo: ' + data.error);
+      }
+    });
+  });
+</script>
 
 {% endblock %}

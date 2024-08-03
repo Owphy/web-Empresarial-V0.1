@@ -1,0 +1,162 @@
+{% extends 'general_templates/general_layout.html' %}
+
+{% block body %}
+<div class="container mt-4">
+    <h2>Chat grupal</h2>
+    {% if is_admin  or is_editor %}
+    <div class="fixed mb-2 md-3 mt-6">
+        <button onclick="toggleSend('disable')" class="btn btn-danger mt-3">Deshabilitar Envío</button>
+        <button onclick="toggleSend('enable')" class="btn btn-success mt-3">Habilitar Envío</button>
+        <button id="clear-btn" class="btn btn-success mt-3">Vaciar chat</button>
+    </div>
+    {% endif %}
+    <div id="messages" class="border mb-3" style="height: 300px; overflow-y: scroll;">
+        <!-- Mensajes del chat aparecerán aquí -->
+    </div>
+    <form id="chat-form" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="input-group">
+            <input type="text" id="message" class="form-control" placeholder="Escribe tu mensaje...">
+            <div class="input-group-append">
+                <button id="send-button" type="submit" class="btn btn-primary">Enviar</button>
+                <div class="dropdown ms-2">
+                    <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        ...
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><input type="file" id="file" class="form-control"></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    var isAdmin = "{{ 'true' if is_admin else 'false' }}";
+    var isEditor = "{{ 'true' if is_editor else 'false' }}";
+    const room = 'chat_all_admin';
+    socket.emit('join', { room: room });
+
+    const messages = document.getElementById('messages');
+    const form = document.getElementById('chat-form');
+    const input = document.getElementById('message');
+    const fileInput = document.getElementById('file');
+    const sendButton = document.getElementById('send-button');
+
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        const message = input.value;
+        const file = fileInput.files[0];
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+        if (file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('csrf_token', csrfToken);
+            fetch('/upload_file', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error(data.error);
+                } else {
+                    const msgData = { message: message, file_path: data.file_path, room: room, username: '{{ current_user.username }}' };
+                    console.log('Enviando mensaje con archivo:', msgData);
+                    socket.emit('send_message', msgData);
+                    fileInput.value = '';
+                }
+            });
+        } else {
+            const msgData = { message: message, room: room, username: '{{ current_user.username }}', csrf_token: csrfToken };
+            console.log('Enviando mensaje sin archivo:', msgData);
+            socket.emit('send_message', msgData);
+        }
+
+        input.value = '';
+    });
+
+    socket.on('receive_message', function(data) {
+        const msg = document.createElement('div');
+        msg.classList.add('message');
+        if (data.file_path) {
+            msg.innerHTML = `<strong>${data.username}:</strong> <a href="${data.file_path}" target="_blank">Download File</a>`;
+        } else {
+            msg.innerHTML = `<strong>${data.username}:</strong> ${data.message}`;
+        }
+        messages.appendChild(msg);
+        messages.scrollTop = messages.scrollHeight;
+    });
+
+    function toggleSend(action) {
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+        fetch('/toggle_send', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: `action=${action}&csrf_token=${csrfToken}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Envío de mensajes ${action === 'disable' ? 'deshabilitado' : 'habilitado'} con éxito`);
+                sendButton.disabled = action === 'disable';
+            } else {
+                alert("Error: " + data.error);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    if (isAdmin === 'true') {
+            document.getElementById('clear-btn').addEventListener('click', function() {
+                socket.emit('clear', { room: 'chat_all_admin' });
+            });
+
+            socket.on('clear', function() {
+                messages.innerHTML = ''; // Clear the messages in the chat
+            });
+        }
+
+    if (isEditor === 'true') {
+        document.getElementById('clear-btn').addEventListener('click', function() {
+            socket.emit('clear', { room: 'chat_all_admin' });
+           });
+
+        socket.on('clear', function() {
+                messages.innerHTML = ''; // Clear the messages in the chat
+        });
+    }
+
+    window.onload = function() {
+        fetch(`/get_messages/chat_all_admin`)
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(msg => {
+                    const msgElement = document.createElement('div');
+                    msgElement.classList.add('message');
+                    if (msg.file_path) {
+                        msgElement.innerHTML = `<strong>${msg.username}:</strong> <a href="${msg.file_path}" target="_blank">Download File</a>`;
+                    } else {
+                        msgElement.innerHTML = `<strong>${msg.username}:</strong> ${msg.message}`;
+                    }
+                    messages.appendChild(msgElement);
+                });
+                messages.scrollTop = messages.scrollHeight;
+            });
+
+        fetch('/check_disable_state')
+            .then(response => response.json())
+            .then(data => {
+                if (data.disable_send) {
+                    sendButton.disabled = true;
+                }
+            });
+    }
+</script>
+
+{% endblock %}
